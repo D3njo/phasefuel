@@ -266,27 +266,40 @@ export function ManualMealForm({
 
       {error && <p className="text-xs text-warning">{error}</p>}
 
-      <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
-        <Input
-          type="number"
-          placeholder="kcal"
-          value={kcal}
-          onChange={(e) => {
-            setKcal(e.target.value)
-            setSelectedSource(null)
-            setMacrosManuallySet(false)
-          }}
-        />
-        <Input
-          type="number"
-          placeholder="Protein (g)"
-          value={protein}
-          onChange={(e) => {
-            setProtein(e.target.value)
-            setSelectedSource(null)
-            setMacrosManuallySet(false)
-          }}
-        />
+      <div>
+        <p className="text-sm text-text-muted mb-2">Nährwerte</p>
+        <p className="text-xs text-text-muted mb-3">
+          <strong className="text-text font-medium">kcal</strong> = Kalorien (Energie) ·{' '}
+          <strong className="text-text font-medium">Protein</strong> = Eiweiß in Gramm ·{' '}
+          <strong className="text-text font-medium">KH</strong> = Kohlenhydrate ·{' '}
+          <strong className="text-text font-medium">Fett</strong> = Fett in Gramm
+        </p>
+        <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
+          <Input
+            label="Kalorien (kcal)"
+            type="number"
+            inputMode="numeric"
+            placeholder="z. B. 650"
+            value={kcal}
+            onChange={(e) => {
+              setKcal(e.target.value)
+              setSelectedSource(null)
+              setMacrosManuallySet(false)
+            }}
+          />
+          <Input
+            label="Protein (g)"
+            type="number"
+            inputMode="numeric"
+            placeholder="z. B. 35"
+            value={protein}
+            onChange={(e) => {
+              setProtein(e.target.value)
+              setSelectedSource(null)
+              setMacrosManuallySet(false)
+            }}
+          />
+        </div>
       </div>
 
       {showEstimate && estimatedMacros && (
@@ -313,8 +326,10 @@ export function ManualMealForm({
       {showMacroDetails && (
         <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
           <Input
+            label="Kohlenhydrate (g)"
             type="number"
-            placeholder="KH (g)"
+            inputMode="numeric"
+            placeholder="z. B. 50"
             value={carbs}
             onChange={(e) => {
               setCarbs(e.target.value)
@@ -323,8 +338,10 @@ export function ManualMealForm({
             }}
           />
           <Input
+            label="Fett (g)"
             type="number"
-            placeholder="Fett (g)"
+            inputMode="numeric"
+            placeholder="z. B. 20"
             value={fat}
             onChange={(e) => {
               setFat(e.target.value)
