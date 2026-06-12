@@ -1,8 +1,11 @@
 import { useState } from 'react'
+import { planConfigFromSettings } from '../data/planConfig'
 import type { MealCategory } from '../data/meals'
-import { CATEGORY_LABELS, getMealById, meals } from '../data/meals'
+import { CATEGORY_LABELS, getMealById, getMealsForGoal } from '../data/meals'
 import type { DayPlan as DayPlanType } from '../data/mealPlan'
 import type { MealLog } from '../db/database'
+import { useSettings } from '../hooks/useNutrition'
+import { filterMeals } from '../lib/mealFilters'
 import { Badge } from './ui/Badge'
 import { MealCard } from './MealCard'
 
@@ -31,8 +34,11 @@ export function DayPlan({
   onEat,
   onSelectAlternative,
 }: DayPlanProps) {
+  const settings = useSettings()
   const [showPicker, setShowPicker] = useState<MealCategory | null>(null)
   const eatenMealIds = new Set(logs.map((l) => l.mealId))
+  const config = settings ? planConfigFromSettings(settings) : null
+  const goalMeals = config ? filterMeals(getMealsForGoal(config.goal), config) : []
 
   return (
     <div className="space-y-5">
@@ -94,7 +100,7 @@ export function DayPlan({
             </div>
             {showPicker === category && (
               <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
-                {meals
+                {goalMeals
                   .filter((m) => m.category === category)
                   .map((meal) => (
                     <MealCard

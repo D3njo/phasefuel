@@ -1,11 +1,10 @@
 import { useState } from 'react'
+import { getScaledCheckpoints } from '../data/planConfig'
 import {
   formatDateDE,
   formatDateKey,
   getPlanStatus,
   PHASE_LABELS,
-  PLAN_CHECKPOINTS,
-  TOTAL_DAYS,
 } from '../data/nutrition'
 import {
   shiftPlanStart,
@@ -34,10 +33,14 @@ export function PlanManager({ settings }: PlanManagerProps) {
   const [scheduleDate, setScheduleDate] = useState(formatDateKey())
   const [busy, setBusy] = useState(false)
 
-  const status = getPlanStatus(settings.startDate)
+  const planDuration = settings.planDuration ?? 45
+  const status = getPlanStatus(settings.startDate, new Date(), planDuration)
 
   const checkpoints = [
-    ...PLAN_CHECKPOINTS,
+    ...getScaledCheckpoints(planDuration).map((cp) => ({
+      day: cp.day,
+      label: `Tag ${cp.day} — ${cp.label}`,
+    })),
     ...(lastActiveDay
       ? [{ day: lastActiveDay, label: `Letzter Eintrag: Tag ${lastActiveDay}` }]
       : []),
@@ -45,7 +48,7 @@ export function PlanManager({ settings }: PlanManagerProps) {
 
   const statusText = status.isBeforeStart
     ? `Plan startet am ${formatDateDE(settings.startDate)} (in ${status.daysUntilStart} ${status.daysUntilStart === 1 ? 'Tag' : 'Tagen'})`
-    : `Tag ${status.day} von ${TOTAL_DAYS} · Phase ${status.phase ? PHASE_LABELS[status.phase] : '—'} · Start war ${formatDateDE(settings.startDate)}`
+    : `Tag ${status.day} von ${planDuration} · Phase ${status.phase ? PHASE_LABELS[status.phase] : '—'} · Start war ${formatDateDE(settings.startDate)}`
 
   const pendingLabel = (() => {
     if (!pending) return ''

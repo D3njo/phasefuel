@@ -1,18 +1,22 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCallback, useMemo } from 'react'
+import { planConfigFromSettings } from '../data/planConfig'
 import { CATEGORY_LABELS_ING, type IngredientCategory } from '../data/ingredients'
 import { getFreshItems, getPantryItems, type ShoppingItem } from '../data/shopping'
 import { db, toggleShoppingCheck } from '../db/database'
+import { useSettings } from './useNutrition'
 
 export function useShoppingChecks(week: number) {
   return useLiveQuery(() => db.shoppingChecks.where('week').equals(week).toArray(), [week])
 }
 
 export function useShoppingList(week: number) {
+  const settings = useSettings()
   const checks = useShoppingChecks(week)
+  const config = settings ? planConfigFromSettings(settings) : undefined
 
-  const freshItems = useMemo(() => getFreshItems(week), [week])
-  const pantryItems = useMemo(() => getPantryItems(week), [week])
+  const freshItems = useMemo(() => getFreshItems(week, config), [week, config])
+  const pantryItems = useMemo(() => getPantryItems(week, config), [week, config])
 
   const withChecks = useCallback(
     (items: ShoppingItem[]) => {

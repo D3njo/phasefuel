@@ -1,4 +1,8 @@
 import Dexie, { type EntityTable } from 'dexie'
+import type { Allergen } from '../data/allergens'
+import { DEFAULT_EXCLUDED_ALLERGENS } from '../data/allergens'
+import type { PlanGoal } from '../data/planConfig'
+import { BASE_PLAN_DAYS } from '../data/planConfig'
 import type { MealCategory } from '../data/meals'
 import { formatDateKey, getStartDateForDay } from '../data/nutrition'
 
@@ -35,6 +39,10 @@ export interface Settings {
   themeMode?: ThemeMode
   skipBreakfastDefault?: boolean
   nutritionApiKey?: string
+  planGoal?: PlanGoal
+  planDuration?: number
+  excludedAllergens?: Allergen[]
+  dislikedMealIds?: string[]
 }
 
 export interface DayPreference {
@@ -51,12 +59,25 @@ export interface ShoppingCheck {
   checked: boolean
 }
 
+export interface SavedDish {
+  id?: number
+  name: string
+  nameKey: string
+  calories: number
+  protein: number
+  fat: number
+  carbs: number
+  lastUsed: number
+  useCount: number
+}
+
 const db = new Dexie('FitagainDB') as Dexie & {
   mealLogs: EntityTable<MealLog, 'id'>
   weightEntries: EntityTable<WeightEntry, 'id'>
   settings: EntityTable<Settings, 'id'>
   shoppingChecks: EntityTable<ShoppingCheck, 'id'>
   dayPreferences: EntityTable<DayPreference, 'id'>
+  savedDishes: EntityTable<SavedDish, 'id'>
 }
 
 db.version(1).stores({
@@ -100,6 +121,36 @@ db.version(4)
       await tx.table('settings').put({ ...settings, skipBreakfastDefault: false })
     }
   })
+
+db.version(5)
+  .stores({
+    mealLogs: '++id, date, mealId, timestamp',
+    weightEntries: '++id, date, timestamp',
+    settings: 'id',
+    shoppingChecks: '++id, week, ingredientId, [week+ingredientId]',
+    dayPreferences: '++id, &date',
+  })
+  .upgrade(async (tx) => {
+    const settings = await tx.table('settings').get(1)
+    if (settings) {
+      await tx.table('settings').put({
+        ...settings,
+        planGoal: settings.planGoal ?? 'muscle',
+        planDuration: settings.planDuration ?? BASE_PLAN_DAYS,
+        excludedAllergens: settings.excludedAllergens ?? [...DEFAULT_EXCLUDED_ALLERGENS],
+        dislikedMealIds: settings.dislikedMealIds ?? [],
+      })
+    }
+  })
+
+db.version(6).stores({
+  mealLogs: '++id, date, mealId, timestamp',
+  weightEntries: '++id, date, timestamp',
+  settings: 'id',
+  shoppingChecks: '++id, week, ingredientId, [week+ingredientId]',
+  dayPreferences: '++id, &date',
+  savedDishes: '++id, &nameKey, lastUsed',
+})
 
 export { db }
 
@@ -175,16 +226,51 @@ export async function saveDayPreference(pref: Omit<DayPreference, 'id'>): Promis
   }
 }
 
+export async function getAllSavedDishes(): Promise<SavedDish[]> {
+  return db.savedDishes.orderBy('lastUsed').reverse().toArray()
+}
+
+export async function upsertSavedDish(
+  dish: Omit<SavedDish, 'id' | 'lastUsed' | 'useCount'>,
+): Promise<void> {
+  const existing = await db.savedDishes.where('nameKey').equals(dish.nameKey).first()
+  const now = Date.now()
+  if (existing?.id) {
+    await db.savedDishes.put({
+      ...existing,
+      name: dish.name,
+      calories: dish.calories,
+      protein: dish.protein,
+      fat: dish.fat,
+      carbs: dish.carbs,
+      lastUsed: now,
+      useCount: existing.useCount + 1,
+    })
+  } else {
+    await db.savedDishes.add({
+      ...dish,
+      lastUsed: now,
+      useCount: 1,
+    })
+  }
+}
+
+export async function deleteSavedDish(id: number): Promise<void> {
+  await db.savedDishes.delete(id)
+}
+
 export async function exportData(): Promise<string> {
-  const [settings, mealLogs, weightEntries, shoppingChecks, dayPreferences] = await Promise.all([
-    db.settings.get(1),
-    db.mealLogs.toArray(),
-    db.weightEntries.toArray(),
-    db.shoppingChecks.toArray(),
-    db.dayPreferences.toArray(),
-  ])
+  const [settings, mealLogs, weightEntries, shoppingChecks, dayPreferences, savedDishes] =
+    await Promise.all([
+      db.settings.get(1),
+      db.mealLogs.toArray(),
+      db.weightEntries.toArray(),
+      db.shoppingChecks.toArray(),
+      db.dayPreferences.toArray(),
+      db.savedDishes.toArray(),
+    ])
   return JSON.stringify(
-    { settings, mealLogs, weightEntries, shoppingChecks, dayPreferences },
+    { settings, mealLogs, weightEntries, shoppingChecks, dayPreferences, savedDishes },
     null,
     2,
   )
@@ -198,7 +284,7 @@ export async function shiftPlanStart(targetDay: number, keepLogs: boolean): Prom
   const settings = await getSettings()
   if (!settings) return
 
-  const startDate = getStartDateForDay(targetDay)
+  const startDate = getStartDateForDay(targetDay, new Date(), settings.planDuration)
   await saveSettings({ ...settings, startDate })
   if (!keepLogs) await clearMealLogsOnly()
 }
@@ -222,5 +308,6 @@ export async function clearAllData(): Promise<void> {
     db.settings.clear(),
     db.shoppingChecks.clear(),
     db.dayPreferences.clear(),
+    db.savedDishes.clear(),
   ])
 }

@@ -1,25 +1,39 @@
+import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useRef, useState } from 'react'
+import type { Allergen } from '../data/allergens'
+import { db } from '../db/database'
 import {
   lookupFoodOnline,
   mergeLookupResults,
   resolveNutritionApiKey,
-  searchLocalDishes,
+  searchAllDishes,
   type FoodLookupResult,
 } from '../services/foodLookup'
 
 interface UseFoodLookupOptions {
   query: string
   nutritionApiKey?: string
+  excludedAllergens?: Allergen[]
   enabled?: boolean
 }
 
-export function useFoodLookup({ query, nutritionApiKey, enabled = true }: UseFoodLookupOptions) {
+export function useFoodLookup({
+  query,
+  nutritionApiKey,
+  excludedAllergens = [],
+  enabled = true,
+}: UseFoodLookupOptions) {
   const [suggestions, setSuggestions] = useState<FoodLookupResult[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasApiKey, setHasApiKey] = useState(false)
 
   const requestId = useRef(0)
+  const exclusionsKey = excludedAllergens.join(',')
+  const savedDishes = useLiveQuery(
+    () => db.savedDishes.orderBy('lastUsed').reverse().toArray(),
+    [],
+  )
 
   useEffect(() => {
     if (!enabled) {
@@ -40,7 +54,7 @@ export function useFoodLookup({ query, nutritionApiKey, enabled = true }: UseFoo
     const apiKey = resolveNutritionApiKey(nutritionApiKey)
     setHasApiKey(Boolean(apiKey))
 
-    const local = searchLocalDishes(trimmed)
+    const local = searchAllDishes(trimmed, savedDishes ?? [], 10, excludedAllergens)
     setSuggestions(local)
 
     if (!apiKey) {
@@ -74,7 +88,7 @@ export function useFoodLookup({ query, nutritionApiKey, enabled = true }: UseFoo
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [query, nutritionApiKey, enabled])
+  }, [query, nutritionApiKey, enabled, exclusionsKey, savedDishes])
 
-  return { suggestions, loading, error, hasApiKey }
+  return { suggestions, loading, error, hasApiKey, savedDishes: savedDishes ?? [] }
 }

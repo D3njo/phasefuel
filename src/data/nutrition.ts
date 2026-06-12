@@ -1,3 +1,12 @@
+import {
+  BASE_PLAN_DAYS,
+  clampPlanDuration,
+  scalePhaseEnd,
+  toBasePlanDay,
+  type PlanConfig,
+  type PlanGoal,
+} from './planConfig'
+
 export type Phase = 'sanfterStart' | 'aufbau' | 'deftig'
 
 export const PHASE_LABELS: Record<Phase, string> = {
@@ -6,33 +15,68 @@ export const PHASE_LABELS: Record<Phase, string> = {
   deftig: 'Deftig',
 }
 
-export const TOTAL_DAYS = 45
-export const PROTEIN_PER_KG = 1.8
+export const TOTAL_DAYS = BASE_PLAN_DAYS
 
-const PHASE_RANGES: Record<Phase, { start: number; end: number; kcalMin: number; kcalMax: number }> = {
-  sanfterStart: { start: 1, end: 10, kcalMin: 2000, kcalMax: 2200 },
-  aufbau: { start: 11, end: 25, kcalMin: 2300, kcalMax: 2600 },
-  deftig: { start: 26, end: 45, kcalMin: 2600, kcalMax: 3000 },
+const BASE_PHASE_ENDS = { sanfterStart: 10, aufbau: 25, deftig: BASE_PLAN_DAYS }
+
+const MUSCLE_KCAL: Record<Phase, { kcalMin: number; kcalMax: number }> = {
+  sanfterStart: { kcalMin: 2000, kcalMax: 2200 },
+  aufbau: { kcalMin: 2300, kcalMax: 2600 },
+  deftig: { kcalMin: 2600, kcalMax: 3000 },
 }
 
-export function getPhase(day: number): Phase {
-  if (day <= 10) return 'sanfterStart'
-  if (day <= 25) return 'aufbau'
-  return 'deftig'
-}
-
-export function getPhaseDay(day: number): number {
-  const phase = getPhase(day)
-  return day - PHASE_RANGES[phase].start + 1
-}
-
-export function getPhaseLength(phase: Phase): number {
-  const range = PHASE_RANGES[phase]
-  return range.end - range.start + 1
+const PROTEIN_PER_KG: Record<PlanGoal, number> = {
+  muscle: 1.8,
+  gain: 1.8,
+  lose: 2.0,
+  maintain: 1.6,
 }
 
 function lerp(min: number, max: number, t: number): number {
   return Math.round(min + (max - min) * t)
+}
+
+function estimateTdee(weightKg: number, heightCm: number, goal: PlanGoal): number {
+  // Mifflin-St Jeor, male default (activity factor 1.375 light)
+  const bmr = 10 * weightKg + 6.25 * heightCm - 5 * 30 + 5
+  const tdee = bmr * 1.375
+  if (goal === 'lose') return Math.round(tdee - 400)
+  if (goal === 'maintain') return Math.round(tdee)
+  return Math.round(tdee)
+}
+
+export function getPhase(day: number, planDuration: number = BASE_PLAN_DAYS): Phase {
+  const d = Math.min(Math.max(day, 1), clampPlanDuration(planDuration))
+  const end1 = scalePhaseEnd(BASE_PHASE_ENDS.sanfterStart, planDuration)
+  const end2 = scalePhaseEnd(BASE_PHASE_ENDS.aufbau, planDuration)
+  if (d <= end1) return 'sanfterStart'
+  if (d <= end2) return 'aufbau'
+  return 'deftig'
+}
+
+export function getPhaseRange(phase: Phase, planDuration: number): { start: number; end: number } {
+  const duration = clampPlanDuration(planDuration)
+  const end1 = scalePhaseEnd(BASE_PHASE_ENDS.sanfterStart, planDuration)
+  const end2 = scalePhaseEnd(BASE_PHASE_ENDS.aufbau, planDuration)
+  switch (phase) {
+    case 'sanfterStart':
+      return { start: 1, end: end1 }
+    case 'aufbau':
+      return { start: end1 + 1, end: end2 }
+    case 'deftig':
+      return { start: end2 + 1, end: duration }
+  }
+}
+
+export function getPhaseDay(day: number, planDuration: number = BASE_PLAN_DAYS): number {
+  const phase = getPhase(day, planDuration)
+  const range = getPhaseRange(phase, planDuration)
+  return day - range.start + 1
+}
+
+export function getPhaseLength(phase: Phase, planDuration: number): number {
+  const range = getPhaseRange(phase, planDuration)
+  return range.end - range.start + 1
 }
 
 export interface DailyTarget {
@@ -44,45 +88,91 @@ export interface DailyTarget {
   fat: number
 }
 
-export function getDailyTarget(day: number, weightKg: number): DailyTarget {
-  const clampedDay = Math.min(Math.max(day, 1), TOTAL_DAYS)
-  const phase = getPhase(clampedDay)
-  const range = PHASE_RANGES[phase]
-  const phaseDay = getPhaseDay(clampedDay)
-  const phaseLength = getPhaseLength(phase)
+function getCaloriesForDay(
+  day: number,
+  phase: Phase,
+  planDuration: number,
+  goal: PlanGoal,
+  weightKg: number,
+  heightCm: number,
+): number {
+  const range = getPhaseRange(phase, planDuration)
+  const phaseDay = day - range.start + 1
+  const phaseLength = range.end - range.start + 1
   const progress = phaseLength === 1 ? 1 : (phaseDay - 1) / (phaseLength - 1)
 
-  const calories = lerp(range.kcalMin, range.kcalMax, progress)
-  const protein = Math.round(weightKg * PROTEIN_PER_KG)
-  const proteinKcal = protein * 4
-  const remaining = calories - proteinKcal
+  if (goal === 'lose' || goal === 'maintain') {
+    const base = estimateTdee(weightKg, heightCm, goal)
+    return base
+  }
 
-  const carbRatio = phase === 'sanfterStart' ? 0.55 : 0.45
+  const muscleRange = MUSCLE_KCAL[phase]
+  let calories = lerp(muscleRange.kcalMin, muscleRange.kcalMax, progress)
+  if (goal === 'gain') calories += 200
+  return calories
+}
+
+export function getDailyTarget(day: number, config: PlanConfig): DailyTarget
+export function getDailyTarget(day: number, weightKg: number): DailyTarget
+export function getDailyTarget(
+  day: number,
+  configOrWeight: PlanConfig | number,
+): DailyTarget {
+  const config: PlanConfig =
+    typeof configOrWeight === 'number'
+      ? {
+          goal: 'muscle',
+          planDuration: BASE_PLAN_DAYS,
+          startWeight: configOrWeight,
+          height: 175,
+          excludedAllergens: [],
+          dislikedMealIds: [],
+        }
+      : configOrWeight
+
+  const duration = clampPlanDuration(config.planDuration)
+  const clampedDay = Math.min(Math.max(day, 1), duration)
+  const phase = getPhase(clampedDay, duration)
+  const calories = getCaloriesForDay(
+    clampedDay,
+    phase,
+    duration,
+    config.goal,
+    config.startWeight,
+    config.height,
+  )
+  const protein = Math.round(config.startWeight * PROTEIN_PER_KG[config.goal])
+  const proteinKcal = protein * 4
+  const remaining = Math.max(0, calories - proteinKcal)
+
+  const carbRatio =
+    config.goal === 'lose' ? 0.35 : phase === 'sanfterStart' ? 0.55 : 0.45
   const carbs = Math.round((remaining * carbRatio) / 4)
   const fat = Math.round((remaining * (1 - carbRatio)) / 9)
 
-  return {
-    day: clampedDay,
-    phase,
-    calories,
-    protein,
-    carbs,
-    fat,
-  }
+  return { day: clampedDay, phase, calories, protein, carbs, fat }
 }
 
-export function getDayNumber(startDate: string, date: Date = new Date()): number {
+export function getDayNumber(
+  startDate: string,
+  date: Date = new Date(),
+  planDuration: number = BASE_PLAN_DAYS,
+): number {
   const start = new Date(startDate + 'T12:00:00')
   start.setHours(0, 0, 0, 0)
   const current = new Date(date)
   current.setHours(0, 0, 0, 0)
   const diff = Math.floor((current.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
   if (diff < 0) return 0
-  return Math.min(diff + 1, TOTAL_DAYS)
+  return Math.min(diff + 1, clampPlanDuration(planDuration))
 }
 
-export function getStartDateForDay(targetDay: number, anchor: Date = new Date()): string {
-  const clamped = Math.min(Math.max(targetDay, 1), TOTAL_DAYS)
+export function getStartDateForDay(
+  targetDay: number,
+  anchor: Date = new Date(),
+  planDuration: number = BASE_PLAN_DAYS,
+): string {
+  const clamped = Math.min(Math.max(targetDay, 1), clampPlanDuration(planDuration))
   const d = new Date(anchor)
   d.setHours(12, 0, 0, 0)
   d.setDate(d.getDate() - (clamped - 1))
@@ -95,10 +185,16 @@ export interface PlanStatus {
   isBeforeStart: boolean
   isComplete: boolean
   phase: Phase | null
+  planDuration: number
 }
 
-export function getPlanStatus(startDate: string, date: Date = new Date()): PlanStatus {
-  const day = getDayNumber(startDate, date)
+export function getPlanStatus(
+  startDate: string,
+  date: Date = new Date(),
+  planDuration: number = BASE_PLAN_DAYS,
+): PlanStatus {
+  const duration = clampPlanDuration(planDuration)
+  const day = getDayNumber(startDate, date, duration)
   const start = new Date(startDate + 'T12:00:00')
   start.setHours(0, 0, 0, 0)
   const current = new Date(date)
@@ -112,6 +208,7 @@ export function getPlanStatus(startDate: string, date: Date = new Date()): PlanS
       isBeforeStart: true,
       isComplete: false,
       phase: null,
+      planDuration: duration,
     }
   }
 
@@ -119,8 +216,9 @@ export function getPlanStatus(startDate: string, date: Date = new Date()): PlanS
     day,
     daysUntilStart: 0,
     isBeforeStart: false,
-    isComplete: day >= TOTAL_DAYS && diff >= TOTAL_DAYS - 1,
-    phase: day > 0 ? getPhase(day) : null,
+    isComplete: day >= duration && diff >= duration - 1,
+    phase: day > 0 ? getPhase(day, duration) : null,
+    planDuration: duration,
   }
 }
 
@@ -135,6 +233,8 @@ export const PLAN_CHECKPOINTS: { day: number; label: string }[] = [
   { day: 36, label: 'Tag 36 — Woche 6' },
   { day: 43, label: 'Tag 43 — Woche 7' },
 ]
+
+export { toBasePlanDay }
 
 export function formatDateKey(date: Date = new Date()): string {
   return date.toISOString().slice(0, 10)

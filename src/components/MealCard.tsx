@@ -29,9 +29,11 @@ export function MealCard({ meal, onEat, eaten, compact, actionLabel }: MealCardP
           {!compact && (
             <p className="text-xs text-text-muted mt-1 line-clamp-2">{meal.description}</p>
           )}
-          <div className="flex gap-3 mt-2 text-xs text-text-muted">
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-2 text-xs text-text-muted">
             <span>{meal.calories} kcal</span>
-            <span>{meal.protein}g Protein</span>
+            <span>{meal.protein}g P</span>
+            <span>{meal.carbs}g KH</span>
+            <span>{meal.fat}g Fett</span>
           </div>
         </div>
         <Button

@@ -1,8 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCallback, useMemo } from 'react'
-import { getDayPlan, resolveDayPlan, type DayPlan } from '../data/mealPlan'
+import { planConfigFromSettings } from '../data/planConfig'
+import { resolveDayPlan, getDayPlan } from '../data/mealPlan'
 import type { MealCategory } from '../data/meals'
-import { getMealById } from '../data/meals'
+import { getMealById, getMealsForGoal } from '../data/meals'
 import {
   formatDateKey,
   getDailyTarget,
@@ -12,16 +13,19 @@ import {
   type DailyTarget,
   type PlanStatus,
 } from '../data/nutrition'
+import { filterSlots } from '../lib/mealFilters'
 import {
   db,
   getSettings,
   logMeal,
   removeMealLog,
   saveDayPreference,
+  upsertSavedDish,
   type DayPreference,
   type MealLog,
   type Settings,
 } from '../db/database'
+import { matchesCatalogDish, normalizeFoodText } from '../services/foodLookup'
 
 export interface DaySummary {
   date: string
@@ -30,10 +34,10 @@ export interface DaySummary {
   planStatus: PlanStatus
   target: DailyTarget
   consumed: { calories: number; protein: number; fat: number; carbs: number }
-  remaining: { calories: number; protein: number }
+  remaining: { calories: number; protein: number; carbs: number; fat: number }
   goalReached: boolean
   logs: MealLog[]
-  plan: DayPlan
+  plan: ReturnType<typeof resolveDayPlan>
   skipBreakfast: boolean
   mealOverrides: Partial<Record<MealCategory, string>>
 }
@@ -62,18 +66,23 @@ export function useDaySummary(date: string = formatDateKey()): DaySummary | unde
   return useMemo(() => {
     if (!settings || logs === undefined || dayPref === undefined) return undefined
 
+    const config = planConfigFromSettings(settings)
     const refDate = new Date(date + 'T12:00:00')
-    const planStatus = getPlanStatus(settings.startDate, refDate)
+    const planStatus = getPlanStatus(settings.startDate, refDate, config.planDuration)
     const dayNumber = planStatus.day
     const effectiveDay = dayNumber > 0 ? dayNumber : 1
-    const target = getDailyTarget(effectiveDay, settings.startWeight)
+    const target = getDailyTarget(effectiveDay, config)
     const skipBreakfast =
       dayPref?.skipBreakfast ?? settings.skipBreakfastDefault ?? false
     const mealOverrides = dayPref?.mealOverrides ?? {}
-    const plan = resolveDayPlan(getDayPlan(effectiveDay), {
-      skipBreakfast,
-      overrides: mealOverrides,
-    })
+
+    const basePlan = getDayPlan(effectiveDay, config.goal, config.planDuration)
+    let plan = resolveDayPlan(basePlan, { skipBreakfast, overrides: mealOverrides })
+    const pool = getMealsForGoal(config.goal)
+    plan = {
+      ...plan,
+      slots: filterSlots(plan.slots, pool, config) as Record<MealCategory, string[]>,
+    }
 
     const consumed = logs.reduce(
       (acc, log) => ({
@@ -95,6 +104,8 @@ export function useDaySummary(date: string = formatDateKey()): DaySummary | unde
       remaining: {
         calories: Math.max(0, target.calories - consumed.calories),
         protein: Math.max(0, target.protein - consumed.protein),
+        carbs: Math.max(0, target.carbs - consumed.carbs),
+        fat: Math.max(0, target.fat - consumed.fat),
       },
       goalReached: isGoalReached(consumed.calories, target.calories),
       logs,
@@ -175,6 +186,17 @@ export function useMealActions() {
         carbs: data.carbs,
         category: 'snack',
       })
+
+      if (!matchesCatalogDish(data.name)) {
+        await upsertSavedDish({
+          name: data.name.trim(),
+          nameKey: normalizeFoodText(data.name),
+          calories: data.calories,
+          protein: data.protein,
+          fat: data.fat,
+          carbs: data.carbs,
+        })
+      }
     },
     [],
   )
@@ -193,6 +215,7 @@ export function useHistorySummaries() {
   return useMemo(() => {
     if (!settings || allLogs === undefined) return []
 
+    const config = planConfigFromSettings(settings)
     const byDate = new Map<string, MealLog[]>()
     for (const log of allLogs) {
       const existing = byDate.get(log.date) ?? []
@@ -202,8 +225,12 @@ export function useHistorySummaries() {
 
     const summaries: DaySummary[] = []
     for (const [date, logs] of byDate) {
-      const dayNumber = getDayNumber(settings.startDate, new Date(date + 'T12:00:00'))
-      const target = getDailyTarget(dayNumber, settings.startWeight)
+      const dayNumber = getDayNumber(
+        settings.startDate,
+        new Date(date + 'T12:00:00'),
+        config.planDuration,
+      )
+      const target = getDailyTarget(dayNumber, config)
       const consumed = logs.reduce(
         (acc, log) => ({
           calories: acc.calories + log.calories,
@@ -214,7 +241,11 @@ export function useHistorySummaries() {
         { calories: 0, protein: 0, fat: 0, carbs: 0 },
       )
 
-      const planStatus = getPlanStatus(settings.startDate, new Date(date + 'T12:00:00'))
+      const planStatus = getPlanStatus(
+        settings.startDate,
+        new Date(date + 'T12:00:00'),
+        config.planDuration,
+      )
 
       summaries.push({
         date,
@@ -226,10 +257,14 @@ export function useHistorySummaries() {
         remaining: {
           calories: Math.max(0, target.calories - consumed.calories),
           protein: Math.max(0, target.protein - consumed.protein),
+          carbs: Math.max(0, target.carbs - consumed.carbs),
+          fat: Math.max(0, target.fat - consumed.fat),
         },
         goalReached: isGoalReached(consumed.calories, target.calories),
         logs,
-        plan: resolveDayPlan(getDayPlan(dayNumber), { skipBreakfast: false }),
+        plan: resolveDayPlan(getDayPlan(dayNumber, config.goal, config.planDuration), {
+          skipBreakfast: false,
+        }),
         skipBreakfast: false,
         mealOverrides: {},
       })
@@ -241,7 +276,9 @@ export function useHistorySummaries() {
 
 export function useStreak(): number {
   const summaries = useHistorySummaries()
+  const settings = useSettings()
   const today = formatDateKey()
+  const maxDays = settings?.planDuration ?? 45
 
   let streak = 0
   const dates = summaries
@@ -252,7 +289,7 @@ export function useStreak(): number {
   if (dates.length === 0) return 0
 
   let checkDate = new Date(today + 'T12:00:00')
-  for (let i = 0; i < 45; i++) {
+  for (let i = 0; i < maxDays; i++) {
     const key = formatDateKey(checkDate)
     if (dates.includes(key)) {
       streak++
@@ -276,7 +313,11 @@ export function useLastActiveDay(): number | null {
 
     let maxDay = 0
     for (const log of allLogs) {
-      const day = getDayNumber(settings.startDate, new Date(log.date + 'T12:00:00'))
+      const day = getDayNumber(
+        settings.startDate,
+        new Date(log.date + 'T12:00:00'),
+        settings.planDuration,
+      )
       if (day > 0 && day > maxDay) maxDay = day
     }
     return maxDay > 0 ? maxDay : null

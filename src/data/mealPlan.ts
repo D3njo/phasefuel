@@ -1,3 +1,6 @@
+import type { PlanGoal } from './planConfig'
+import { toBasePlanDay } from './planConfig'
+import { remapDayPlanForGoal } from './mealPlans/remap'
 import type { MealCategory } from './meals'
 import { getPhase, type Phase } from './nutrition'
 
@@ -150,10 +153,16 @@ export const weekPlans: WeekPlan[] = weekDefinitions.map((def, i) => {
 
 export const mealPlan: DayPlan[] = weekPlans.flatMap((w) => w.dayPlans)
 
-export function getDayPlan(day: number): DayPlan {
-  const plan = mealPlan.find((d) => d.day === day)
-  if (plan) return plan
-  return mealPlan[mealPlan.length - 1]
+export function getDayPlan(
+  day: number,
+  goal: PlanGoal = 'muscle',
+  planDuration: number = 45,
+): DayPlan {
+  const baseDay = toBasePlanDay(day, planDuration)
+  const plan = mealPlan.find((d) => d.day === baseDay) ?? mealPlan[mealPlan.length - 1]
+  const withDisplayDay = { ...plan, day }
+  if (goal === 'muscle') return withDisplayDay
+  return remapDayPlanForGoal(withDisplayDay, goal, day)
 }
 
 function slotWithAlt(primary: string, sources: string[]): string[] {

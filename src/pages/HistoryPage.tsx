@@ -38,6 +38,18 @@ export function HistoryPage({ chartColors }: HistoryPageProps) {
     ziel: s.target.protein,
   }))
 
+  const carbsData = summaries.map((s) => ({
+    date: s.date.slice(5),
+    kohlenhydrate: s.consumed.carbs,
+    ziel: s.target.carbs,
+  }))
+
+  const fatData = summaries.map((s) => ({
+    date: s.date.slice(5),
+    fett: s.consumed.fat,
+    ziel: s.target.fat,
+  }))
+
   const completedDays = summaries.filter((s) => s.goalReached).length
   const tooltipStyle = {
     background: chartColors.tooltipBg,
@@ -96,6 +108,43 @@ export function HistoryPage({ chartColors }: HistoryPageProps) {
                   <YAxis tick={{ fontSize: 10, fill: chartColors.text }} width={35} />
                   <Tooltip contentStyle={tooltipStyle} />
                   <Bar dataKey="protein" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <ReferenceLine
+                    y={proteinData[0]?.ziel}
+                    stroke={chartColors.warning}
+                    strokeDasharray="4 4"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
+              Kohlenhydrate pro Tag
+            </h2>
+            <Card className="!p-2 h-36">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={carbsData}>
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: chartColors.text }} />
+                  <YAxis tick={{ fontSize: 10, fill: chartColors.text }} width={35} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Bar dataKey="kohlenhydrate" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
+              Fett pro Tag
+            </h2>
+            <Card className="!p-2 h-36">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={fatData}>
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: chartColors.text }} />
+                  <YAxis tick={{ fontSize: 10, fill: chartColors.text }} width={35} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Bar dataKey="fett" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </Card>

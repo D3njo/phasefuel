@@ -1,3 +1,5 @@
+import type { Allergen } from './allergens'
+
 export type IngredientCategory = 'protein' | 'milch' | 'getreide' | 'gemuese' | 'obst' | 'vorrat'
 
 export interface Ingredient {
@@ -6,6 +8,7 @@ export interface Ingredient {
   category: IngredientCategory
   unit: string
   pantry: boolean
+  allergens?: Allergen[]
 }
 
 export interface MealIngredient {
@@ -24,7 +27,7 @@ export const CATEGORY_LABELS_ING: Record<IngredientCategory, string> = {
 
 export const ingredients: Ingredient[] = [
   // Protein
-  { id: 'ei', name: 'Eier', category: 'protein', unit: 'Stück', pantry: false },
+  { id: 'ei', name: 'Eier', category: 'protein', unit: 'Stück', pantry: false, allergens: ['eggs'] },
   { id: 'haehnchenbrust', name: 'Hähnchenbrust', category: 'protein', unit: 'g', pantry: false },
   { id: 'haehnchenschenkel', name: 'Hähnchenschenkel', category: 'protein', unit: 'g', pantry: false },
   { id: 'rinderhack', name: 'Rinderhack', category: 'protein', unit: 'g', pantry: false },
@@ -39,13 +42,13 @@ export const ingredients: Ingredient[] = [
   { id: 'burgerpatty', name: 'Burger-Patties (Rind)', category: 'protein', unit: 'Stück', pantry: false },
 
   // Milch
-  { id: 'milch', name: 'Vollmilch', category: 'milch', unit: 'ml', pantry: false },
+  { id: 'milch', name: 'Vollmilch', category: 'milch', unit: 'ml', pantry: false, allergens: ['lactose'] },
   { id: 'kefir', name: 'Kefir natur', category: 'milch', unit: 'ml', pantry: false },
   { id: 'buttermilch', name: 'Buttermilch', category: 'milch', unit: 'ml', pantry: false },
-  { id: 'joghurt', name: 'Griechischer Joghurt', category: 'milch', unit: 'g', pantry: false },
-  { id: 'quark', name: 'Magerquark', category: 'milch', unit: 'g', pantry: false },
-  { id: 'skyr', name: 'Skyr natur', category: 'milch', unit: 'g', pantry: false },
-  { id: 'kaese', name: 'Käse (Gouda/Emmentaler)', category: 'milch', unit: 'g', pantry: false },
+  { id: 'joghurt', name: 'Griechischer Joghurt', category: 'milch', unit: 'g', pantry: false, allergens: ['lactose'] },
+  { id: 'quark', name: 'Magerquark', category: 'milch', unit: 'g', pantry: false, allergens: ['lactose'] },
+  { id: 'skyr', name: 'Skyr natur', category: 'milch', unit: 'g', pantry: false, allergens: ['lactose'] },
+  { id: 'kaese', name: 'Käse (Gouda/Emmentaler)', category: 'milch', unit: 'g', pantry: false, allergens: ['lactose'] },
   { id: 'parmesan', name: 'Parmesan', category: 'milch', unit: 'g', pantry: false },
   { id: 'sourcream', name: 'Saure Sahne', category: 'milch', unit: 'g', pantry: false },
   { id: 'orangensaft', name: 'Orangensaft', category: 'milch', unit: 'ml', pantry: false },
@@ -55,17 +58,17 @@ export const ingredients: Ingredient[] = [
   { id: 'multivitaminsaft', name: 'Multivitaminsaft (ACE)', category: 'milch', unit: 'ml', pantry: false },
 
   // Getreide
-  { id: 'haferflocken', name: 'Haferflocken', category: 'getreide', unit: 'g', pantry: true },
+  { id: 'haferflocken', name: 'Haferflocken', category: 'getreide', unit: 'g', pantry: true, allergens: ['gluten'] },
   { id: 'reis', name: 'Reis (Basmati/Jasmin)', category: 'getreide', unit: 'g', pantry: true },
-  { id: 'nudeln', name: 'Nudeln / Pasta', category: 'getreide', unit: 'g', pantry: true },
-  { id: 'brot', name: 'Vollkornbrot', category: 'getreide', unit: 'Scheiben', pantry: false },
+  { id: 'nudeln', name: 'Nudeln / Pasta', category: 'getreide', unit: 'g', pantry: true, allergens: ['gluten'] },
+  { id: 'brot', name: 'Vollkornbrot', category: 'getreide', unit: 'Scheiben', pantry: false, allergens: ['gluten'] },
   { id: 'tortilla', name: 'Weizentortillas', category: 'getreide', unit: 'Stück', pantry: false },
   { id: 'fladenbrot', name: 'Fladenbrot', category: 'getreide', unit: 'Stück', pantry: false },
   { id: 'broetchen', name: 'Brötchen / Brioche', category: 'getreide', unit: 'Stück', pantry: false },
-  { id: 'spaetzle', name: 'Spätzle (frisch)', category: 'getreide', unit: 'g', pantry: false },
-  { id: 'knoedel', name: 'Semmelknödel', category: 'getreide', unit: 'Stück', pantry: false },
-  { id: 'pizzateig', name: 'Pizzateig (fertig)', category: 'getreide', unit: 'Stück', pantry: false },
-  { id: 'croissant', name: 'Croissants', category: 'getreide', unit: 'Stück', pantry: false },
+  { id: 'spaetzle', name: 'Spätzle (frisch)', category: 'getreide', unit: 'g', pantry: false, allergens: ['gluten', 'eggs'] },
+  { id: 'knoedel', name: 'Semmelknödel', category: 'getreide', unit: 'Stück', pantry: false, allergens: ['gluten', 'eggs'] },
+  { id: 'pizzateig', name: 'Pizzateig (fertig)', category: 'getreide', unit: 'Stück', pantry: false, allergens: ['gluten'] },
+  { id: 'croissant', name: 'Croissants', category: 'getreide', unit: 'Stück', pantry: false, allergens: ['gluten', 'lactose'] },
   { id: 'kartoffeln', name: 'Kartoffeln', category: 'getreide', unit: 'g', pantry: false },
   { id: 'pommes', name: 'Pommes frites (TK)', category: 'getreide', unit: 'g', pantry: false },
 

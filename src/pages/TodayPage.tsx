@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalorieRing } from '../components/CalorieRing'
+import { MacroDashboard } from '../components/MacroDashboard'
 import { DayPlan } from '../components/DayPlan'
 import { ManualMealForm } from '../components/ManualMealForm'
 import { Button } from '../components/ui/Button'
@@ -67,7 +67,7 @@ export function TodayPage({ onGoShopping }: TodayPageProps) {
     <div className="space-y-6">
       <PageHeader
         title="Heute"
-        subtitle={`Tag ${summary.dayNumber}`}
+        subtitle={`Tag ${summary.dayNumber} von ${summary.planStatus.planDuration}`}
         badge={PHASE_LABELS[summary.target.phase]}
       />
 
@@ -84,12 +84,7 @@ export function TodayPage({ onGoShopping }: TodayPageProps) {
       )}
 
       <div className="flex justify-center">
-        <CalorieRing
-          consumed={summary.consumed.calories}
-          target={summary.target.calories}
-          protein={summary.consumed.protein}
-          proteinTarget={summary.target.protein}
-        />
+        <MacroDashboard consumed={summary.consumed} target={summary.target} />
       </div>
 
       <Card className="!p-4">
@@ -122,6 +117,10 @@ export function TodayPage({ onGoShopping }: TodayPageProps) {
               ? 'Ein Shake oder Snack reicht oft schon.'
               : 'Versuch die nächste Mahlzeit aus dem Plan.'}
           </p>
+          <p className="text-xs text-text-muted mt-2">
+            Noch {summary.remaining.protein}g Protein · {summary.remaining.carbs}g KH ·{' '}
+            {summary.remaining.fat}g Fett
+          </p>
         </Card>
       )}
 
@@ -138,7 +137,10 @@ export function TodayPage({ onGoShopping }: TodayPageProps) {
               >
                 <span className="font-medium">{logEntry.mealName}</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-text-muted">{logEntry.calories} kcal</span>
+                  <span className="text-text-muted text-xs">
+                    {logEntry.calories} kcal · {logEntry.protein}P · {logEntry.carbs}KH ·{' '}
+                    {logEntry.fat}F
+                  </span>
                   <button
                     onClick={() => logEntry.id && remove(logEntry.id)}
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors"
@@ -168,6 +170,7 @@ export function TodayPage({ onGoShopping }: TodayPageProps) {
         {showManual && (
           <ManualMealForm
             nutritionApiKey={settings?.nutritionApiKey}
+            excludedAllergens={settings?.excludedAllergens}
             onSubmit={async (data) => {
               await logManual(data)
             }}

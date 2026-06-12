@@ -1,6 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { Allergen } from '../data/allergens'
+import { DEFAULT_EXCLUDED_ALLERGENS } from '../data/allergens'
+import {
+  MAX_PLAN_DURATION,
+  MIN_PLAN_DURATION,
+  PLAN_GOAL_LABELS,
+  type PlanGoal,
+} from '../data/planConfig'
 import { saveSettings, exportData, clearAllData, clearMealLogsOnly } from '../db/database'
 import { formatDateKey } from '../data/nutrition'
+import { ExclusionSettings } from '../components/ExclusionSettings'
 import { useSettings } from '../hooks/useNutrition'
 import { useTheme } from '../hooks/useTheme'
 import { InstallGuide } from '../components/InstallGuide'
@@ -17,6 +26,15 @@ export function ProfilePage() {
   const [saved, setSaved] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
   const [confirmClearLogs, setConfirmClearLogs] = useState(false)
+  const [excludedAllergens, setExcludedAllergens] = useState<Allergen[]>([
+    ...DEFAULT_EXCLUDED_ALLERGENS,
+  ])
+
+  useEffect(() => {
+    if (settings?.excludedAllergens) {
+      setExcludedAllergens(settings.excludedAllergens)
+    }
+  }, [settings?.excludedAllergens])
 
   if (!settings) return null
 
@@ -39,6 +57,10 @@ export function ProfilePage() {
       themeMode: settings.themeMode ?? 'system',
       skipBreakfastDefault: settings.skipBreakfastDefault ?? false,
       nutritionApiKey: String(form.get('nutritionApiKey') ?? '').trim() || undefined,
+      planGoal: (form.get('planGoal') as PlanGoal) || settings.planGoal || 'muscle',
+      planDuration: parseInt(String(form.get('planDuration')), 10) || settings.planDuration || 45,
+      excludedAllergens,
+      dislikedMealIds: settings.dislikedMealIds ?? [],
     })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -144,6 +166,44 @@ export function ProfilePage() {
         />
       </section>
 
+      <section>
+        <h3 className="text-sm font-medium mb-2">Plan & Ziel</h3>
+        <Card className="!p-4 space-y-3">
+          <div>
+            <label className="text-sm text-text-muted block mb-1.5">Ziel</label>
+            <select
+              name="planGoal"
+              form="profile-form"
+              defaultValue={settings.planGoal ?? 'muscle'}
+              className="w-full px-4 py-3 rounded-xl bg-surface-raised border border-border text-text"
+            >
+              {(Object.keys(PLAN_GOAL_LABELS) as PlanGoal[]).map((g) => (
+                <option key={g} value={g}>
+                  {PLAN_GOAL_LABELS[g]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Input
+            name="planDuration"
+            label={`Planlänge (${MIN_PLAN_DURATION}–${MAX_PLAN_DURATION} Tage)`}
+            type="number"
+            min={MIN_PLAN_DURATION}
+            max={MAX_PLAN_DURATION}
+            defaultValue={settings.planDuration ?? 45}
+            form="profile-form"
+          />
+          <p className="text-xs text-text-muted">
+            Änderungen wirken auf neue Tagespläne. Bestehende Logs bleiben erhalten.
+          </p>
+        </Card>
+      </section>
+
+      <ExclusionSettings
+        excludedAllergens={excludedAllergens}
+        onChange={setExcludedAllergens}
+      />
+
       <form id="profile-form" onSubmit={handleSave} className="space-y-4">
         <Input
           name="startWeight"
@@ -176,16 +236,6 @@ export function ProfilePage() {
           {saved ? 'Gespeichert ✓' : 'Speichern'}
         </Button>
       </form>
-
-      <Card>
-        <h3 className="font-semibold text-sm mb-2">Ausschlüsse</h3>
-        <ul className="text-sm text-text-muted space-y-1">
-          <li>✕ Keine Fischgerichte</li>
-          <li>✕ Keine Süßigkeiten / Süßspeisen</li>
-          <li>✕ Kein Kakao, keine Vanillemilch</li>
-          <li>✓ Saft, Cola & Protein-Shake sind im Plan</li>
-        </ul>
-      </Card>
 
       <InstallGuide />
 

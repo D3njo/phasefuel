@@ -1,6 +1,8 @@
+import type { PlanConfig } from './planConfig'
 import { getIngredientById, type Ingredient } from './ingredients'
-import { getMealById } from './meals'
-import { getWeekPlan, type DayPlan, type WeekPlan } from './mealPlan'
+import { getMealById, getMealsForGoal } from './meals'
+import { getDayPlan, getWeekPlan, resolveDayPlan, type DayPlan, type WeekPlan } from './mealPlan'
+import { filterSlots } from '../lib/mealFilters'
 
 export interface ShoppingItem {
   ingredient: Ingredient
@@ -47,13 +49,25 @@ function collectMealIdsForShopping(dayPlan: DayPlan): string[] {
   return [...ids]
 }
 
-export function getShoppingList(week: number): ShoppingItem[] {
+export function getShoppingList(week: number, config?: PlanConfig): ShoppingItem[] {
   const weekPlan = getWeekPlan(week)
   if (!weekPlan) return []
 
   const aggregated = new Map<string, { amount: number; meals: Set<string> }>()
 
-  for (const dayPlan of weekPlan.dayPlans) {
+  for (const dayNum of weekPlan.days) {
+    const baseDay = config
+      ? getDayPlan(dayNum, config.goal, config.planDuration)
+      : getDayPlan(dayNum)
+    const pool = config ? getMealsForGoal(config.goal) : []
+    const filtered = config
+      ? {
+          ...baseDay,
+          slots: filterSlots(baseDay.slots, pool, config) as DayPlan['slots'],
+        }
+      : baseDay
+    const dayPlan = resolveDayPlan(filtered, { skipBreakfast: false })
+
     for (const mealId of collectMealIdsForShopping(dayPlan)) {
       const meal = getMealById(mealId)
       if (!meal) continue
@@ -98,12 +112,12 @@ export function getShoppingList(week: number): ShoppingItem[] {
   })
 }
 
-export function getFreshItems(week: number): ShoppingItem[] {
-  return getShoppingList(week).filter((i) => !i.pantry)
+export function getFreshItems(week: number, config?: PlanConfig): ShoppingItem[] {
+  return getShoppingList(week, config).filter((i) => !i.pantry)
 }
 
-export function getPantryItems(week: number): ShoppingItem[] {
-  return getShoppingList(week).filter((i) => i.pantry)
+export function getPantryItems(week: number, config?: PlanConfig): ShoppingItem[] {
+  return getShoppingList(week, config).filter((i) => i.pantry)
 }
 
 export function getWeekSummary(weekPlan: WeekPlan): string {

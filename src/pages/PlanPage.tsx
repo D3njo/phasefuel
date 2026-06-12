@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { planConfigFromSettings, PLAN_GOAL_LABELS } from '../data/planConfig'
 import { getMealById, CATEGORY_LABELS } from '../data/meals'
-import { resolveDayPlan, weekPlans } from '../data/mealPlan'
+import { getDayPlan, resolveDayPlan, weekPlans } from '../data/mealPlan'
 import { PHASE_LABELS, getDailyTarget } from '../data/nutrition'
 import { useHistorySummaries, useSettings } from '../hooks/useNutrition'
 import { Button } from '../components/ui/Button'
@@ -25,14 +26,15 @@ export function PlanPage({ onGoShopping }: PlanPageProps) {
 
   if (!settings) return null
 
+  const config = planConfigFromSettings(settings)
   const skipBreakfast = settings.skipBreakfastDefault ?? false
   const completedDates = new Set(summaries.filter((s) => s.goalReached).map((s) => s.dayNumber))
 
   return (
     <div className="space-y-4">
       <PageHeader
-        title="45-Tage-Plan"
-        subtitle="7 Wochen — je Woche ein Einkauf"
+        title={`${config.planDuration}-Tage-Plan`}
+        subtitle={`${PLAN_GOAL_LABELS[config.goal]} · 7 Wochen`}
       />
 
       {skipBreakfast && (
@@ -92,19 +94,20 @@ export function PlanPage({ onGoShopping }: PlanPageProps) {
                   )}
 
                   <div className="mt-3 space-y-2">
-                    {week.dayPlans.map((day) => {
+                    {week.days.map((dayNum) => {
+                      const day = getDayPlan(dayNum, config.goal, config.planDuration)
                       const resolvedDay = resolveDayPlan(day, { skipBreakfast })
-                      const target = getDailyTarget(day.day, settings.startWeight)
-                      const isComplete = completedDates.has(day.day)
-                      const isDayExpanded = expandedDay === day.day
+                      const target = getDailyTarget(dayNum, config)
+                      const isComplete = completedDates.has(dayNum)
+                      const isDayExpanded = expandedDay === dayNum
 
                       return (
                         <div
-                          key={day.day}
+                          key={dayNum}
                           className="rounded-xl bg-surface border border-border/40 card-shadow"
                         >
                           <button
-                            onClick={() => setExpandedDay(isDayExpanded ? null : day.day)}
+                            onClick={() => setExpandedDay(isDayExpanded ? null : dayNum)}
                             className="w-full flex items-center justify-between p-3 text-left"
                           >
                             <div className="flex items-center gap-2">
@@ -113,11 +116,14 @@ export function PlanPage({ onGoShopping }: PlanPageProps) {
                                   isComplete ? 'bg-accent text-accent-foreground' : 'bg-surface-overlay/60'
                                 }`}
                               >
-                                {isComplete ? '✓' : day.day}
+                                {isComplete ? '✓' : dayNum}
                               </span>
                               <div>
-                                <p className="text-sm font-medium">Tag {day.day}</p>
-                                <p className="text-xs text-text-muted">{target.calories} kcal</p>
+                                <p className="text-sm font-medium">Tag {dayNum}</p>
+                                <p className="text-xs text-text-muted">
+                                  {target.calories} kcal · {target.protein}P · {target.carbs}KH ·{' '}
+                                  {target.fat}F
+                                </p>
                               </div>
                             </div>
                             <span className="text-text-muted text-xs">{isDayExpanded ? '▲' : '▼'}</span>
