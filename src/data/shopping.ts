@@ -1,6 +1,6 @@
 import { getIngredientById, type Ingredient } from './ingredients'
 import { getMealById } from './meals'
-import { getWeekPlan, type WeekPlan } from './mealPlan'
+import { getWeekPlan, type DayPlan, type WeekPlan } from './mealPlan'
 
 export interface ShoppingItem {
   ingredient: Ingredient
@@ -33,6 +33,20 @@ function roundAmount(_id: string, amount: number, unit: string): string {
   return `~${Math.round(amount)} ${unit}`
 }
 
+function collectMealIdsForShopping(dayPlan: DayPlan): string[] {
+  const ids = new Set<string>()
+  for (const mealIds of Object.values(dayPlan.slots)) {
+    for (const id of mealIds) ids.add(id)
+  }
+  const nb = dayPlan.noBreakfast
+  ids.add(nb.mittag)
+  ids.add(nb.abend)
+  ids.add(nb.snack)
+  ids.add(nb.getraenk)
+  if (nb.altSnack) ids.add(nb.altSnack)
+  return [...ids]
+}
+
 export function getShoppingList(week: number): ShoppingItem[] {
   const weekPlan = getWeekPlan(week)
   if (!weekPlan) return []
@@ -40,17 +54,15 @@ export function getShoppingList(week: number): ShoppingItem[] {
   const aggregated = new Map<string, { amount: number; meals: Set<string> }>()
 
   for (const dayPlan of weekPlan.dayPlans) {
-    for (const mealIds of Object.values(dayPlan.slots)) {
-      for (const mealId of mealIds) {
-        const meal = getMealById(mealId)
-        if (!meal) continue
+    for (const mealId of collectMealIdsForShopping(dayPlan)) {
+      const meal = getMealById(mealId)
+      if (!meal) continue
 
-        for (const { ingredientId, amount } of meal.ingredients) {
-          const existing = aggregated.get(ingredientId) ?? { amount: 0, meals: new Set<string>() }
-          existing.amount += amount
-          existing.meals.add(meal.name)
-          aggregated.set(ingredientId, existing)
-        }
+      for (const { ingredientId, amount } of meal.ingredients) {
+        const existing = aggregated.get(ingredientId) ?? { amount: 0, meals: new Set<string>() }
+        existing.amount += amount
+        existing.meals.add(meal.name)
+        aggregated.set(ingredientId, existing)
       }
     }
   }
