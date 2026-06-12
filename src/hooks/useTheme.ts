@@ -36,7 +36,7 @@ export function useTheme(settings: Settings | null | undefined) {
     const next = getResolvedTheme(themeMode)
     setResolved(next)
     applyTheme(next)
-    localStorage.setItem('fitagain-theme-cache', themeMode)
+    localStorage.setItem('phasefuel-theme-cache', themeMode)
 
     if (themeMode !== 'system') return
 
@@ -71,7 +71,9 @@ export function useTheme(settings: Settings | null | undefined) {
 }
 
 export function initThemeBeforeLoad() {
-  const stored = localStorage.getItem('fitagain-theme-cache')
+  const stored =
+    localStorage.getItem('phasefuel-theme-cache') ??
+    localStorage.getItem('fitagain-theme-cache')
   const mode = (stored as ThemeMode) || 'system'
   applyTheme(getResolvedTheme(mode))
 }

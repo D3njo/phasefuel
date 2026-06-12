@@ -15,9 +15,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Fitagain',
-        short_name: 'Fitagain',
-        description: 'Essens-App für Muskelaufbau — 45 Tage',
+        name: 'PhaseFuel',
+        short_name: 'PhaseFuel',
+        description: 'Phasenplan, Makros und Essen für dein Körperziel',
         theme_color: '#f8fafc',
         background_color: '#f8fafc',
         display: 'standalone',

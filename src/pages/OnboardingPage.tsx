@@ -58,9 +58,9 @@ export function OnboardingPage() {
     <div className="min-h-dvh flex flex-col overflow-y-auto px-4 sm:px-6 py-6 sm:py-10 max-w-lg mx-auto bg-surface">
       <div className="mb-8 text-center">
         <div className="w-16 h-16 rounded-2xl bg-accent/15 text-accent flex items-center justify-center text-2xl font-bold mx-auto mb-4">
-          F
+          P
         </div>
-        <h1 className="text-3xl font-bold tracking-tight">Fitagain</h1>
+        <h1 className="text-3xl font-bold tracking-tight">PhaseFuel</h1>
         <p className="text-text-muted mt-2 max-w-sm mx-auto">
           {step === 0 && 'Körperdaten für deinen persönlichen Plan.'}
           {step === 1 && 'Ziel und Planlänge wählen.'}

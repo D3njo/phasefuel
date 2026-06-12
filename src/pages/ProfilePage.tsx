@@ -72,7 +72,7 @@ export function ProfilePage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `fitagain-backup-${formatDateKey()}.json`
+    a.download = `phasefuel-backup-${formatDateKey()}.json`
     a.click()
     URL.revokeObjectURL(url)
   }
