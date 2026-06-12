@@ -156,18 +156,23 @@ export function getDayPlan(day: number): DayPlan {
   return mealPlan[mealPlan.length - 1]
 }
 
+function slotWithAlt(primary: string, sources: string[]): string[] {
+  const alt = sources.find((id) => id !== primary)
+  return alt ? [primary, alt] : [primary]
+}
+
 function buildSlotsFromNoBreakfast(
   plan: DayPlan,
   nb: NoBreakfastSlots,
 ): Record<MealCategory, string[]> {
   const slots: Record<MealCategory, string[]> = {
     fruehstueck: [],
-    mittag: [nb.mittag],
-    abend: [nb.abend],
-    snack: [nb.snack],
-    getraenk: [nb.getraenk],
+    mittag: slotWithAlt(nb.mittag, plan.slots.mittag),
+    abend: slotWithAlt(nb.abend, plan.slots.abend),
+    snack: slotWithAlt(nb.snack, plan.slots.snack),
+    getraenk: slotWithAlt(nb.getraenk, plan.slots.getraenk),
   }
-  if (nb.altSnack && plan.phase !== 'sanfterStart') {
+  if (nb.altSnack && plan.phase !== 'sanfterStart' && !slots.snack.includes(nb.altSnack)) {
     slots.snack.push(nb.altSnack)
   }
   return slots
