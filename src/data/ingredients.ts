@@ -48,6 +48,11 @@ export const ingredients: Ingredient[] = [
   { id: 'kaese', name: 'Käse (Gouda/Emmentaler)', category: 'milch', unit: 'g', pantry: false },
   { id: 'parmesan', name: 'Parmesan', category: 'milch', unit: 'g', pantry: false },
   { id: 'sourcream', name: 'Saure Sahne', category: 'milch', unit: 'g', pantry: false },
+  { id: 'orangensaft', name: 'Orangensaft', category: 'milch', unit: 'ml', pantry: false },
+  { id: 'apfelsaft', name: 'Apfelsaft', category: 'milch', unit: 'ml', pantry: false },
+  { id: 'cola', name: 'Cola', category: 'milch', unit: 'ml', pantry: false },
+  { id: 'tomatensaft', name: 'Tomatensaft', category: 'milch', unit: 'ml', pantry: false },
+  { id: 'multivitaminsaft', name: 'Multivitaminsaft (ACE)', category: 'milch', unit: 'ml', pantry: false },
 
   // Getreide
   { id: 'haferflocken', name: 'Haferflocken', category: 'getreide', unit: 'g', pantry: true },

@@ -8,9 +8,10 @@ interface MealCardProps {
   onEat: (mealId: string) => void
   eaten?: boolean
   compact?: boolean
+  actionLabel?: string
 }
 
-export function MealCard({ meal, onEat, eaten, compact }: MealCardProps) {
+export function MealCard({ meal, onEat, eaten, compact, actionLabel }: MealCardProps) {
   return (
     <Card className={`${compact ? '!p-3' : ''} ${eaten ? 'opacity-75' : ''}`}>
       <div className="flex justify-between items-start gap-3">
@@ -39,7 +40,7 @@ export function MealCard({ meal, onEat, eaten, compact }: MealCardProps) {
           variant={eaten ? 'secondary' : 'primary'}
           className="shrink-0 !min-h-[44px] !min-w-[88px] !px-3"
         >
-          {eaten ? '✓' : 'Gegessen'}
+          {eaten ? '✓' : (actionLabel ?? 'Gegessen')}
         </Button>
       </div>
     </Card>

@@ -3,12 +3,15 @@ import type { MealCategory } from '../data/meals'
 import { CATEGORY_LABELS, getMealById, meals } from '../data/meals'
 import type { DayPlan as DayPlanType } from '../data/mealPlan'
 import type { MealLog } from '../db/database'
+import { Badge } from './ui/Badge'
 import { MealCard } from './MealCard'
 
 interface DayPlanProps {
   plan: DayPlanType
   logs: MealLog[]
+  mealOverrides?: Partial<Record<MealCategory, string>>
   onEat: (mealId: string) => void
+  onSelectAlternative?: (category: MealCategory, mealId: string) => void
 }
 
 const SLOT_ORDER: MealCategory[] = ['fruehstueck', 'mittag', 'abend', 'snack', 'getraenk']
@@ -21,7 +24,13 @@ const CATEGORY_ICONS: Record<MealCategory, string> = {
   getraenk: '◦',
 }
 
-export function DayPlan({ plan, logs, onEat }: DayPlanProps) {
+export function DayPlan({
+  plan,
+  logs,
+  mealOverrides = {},
+  onEat,
+  onSelectAlternative,
+}: DayPlanProps) {
   const [showPicker, setShowPicker] = useState<MealCategory | null>(null)
   const eatenMealIds = new Set(logs.map((l) => l.mealId))
 
@@ -29,7 +38,12 @@ export function DayPlan({ plan, logs, onEat }: DayPlanProps) {
     <div className="space-y-5">
       {SLOT_ORDER.map((category) => {
         const mealIds = plan.slots[category] ?? []
-        const suggestedMeals = mealIds.map((id) => getMealById(id)).filter(Boolean)
+        if (mealIds.length === 0) return null
+
+        const selectedId = mealOverrides[category]
+        const orderedIds = selectedId
+          ? [selectedId, ...mealIds.filter((id) => id !== selectedId)]
+          : mealIds
 
         return (
           <section key={category} className="border-t border-border/40 pt-4 first:border-0 first:pt-0">
@@ -48,17 +62,35 @@ export function DayPlan({ plan, logs, onEat }: DayPlanProps) {
               </button>
             </div>
             <div className="space-y-2">
-              {suggestedMeals.map(
-                (meal) =>
-                  meal && (
+              {orderedIds.map((mealId, index) => {
+                const meal = getMealById(mealId)
+                if (!meal) return null
+                const isPrimary = index === 0
+                const label =
+                  isPrimary && orderedIds.length > 1
+                    ? selectedId
+                      ? 'Gewählt'
+                      : 'Vorschlag'
+                    : 'Alternative'
+
+                return (
+                  <div key={meal.id} className="space-y-1">
+                    {orderedIds.length > 1 && (
+                      <Badge variant={isPrimary ? 'accent' : 'default'}>{label}</Badge>
+                    )}
                     <MealCard
-                      key={meal.id}
                       meal={meal}
-                      onEat={onEat}
+                      onEat={
+                        isPrimary
+                          ? onEat
+                          : () => onSelectAlternative?.(category, meal.id)
+                      }
                       eaten={eatenMealIds.has(meal.id)}
+                      actionLabel={isPrimary ? undefined : 'Wählen'}
                     />
-                  ),
-              )}
+                  </div>
+                )
+              })}
             </div>
             {showPicker === category && (
               <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
@@ -69,11 +101,12 @@ export function DayPlan({ plan, logs, onEat }: DayPlanProps) {
                       key={meal.id}
                       meal={meal}
                       onEat={(id) => {
-                        onEat(id)
+                        onSelectAlternative?.(category, id)
                         setShowPicker(null)
                       }}
                       eaten={eatenMealIds.has(meal.id)}
                       compact
+                      actionLabel="Wählen"
                     />
                   ))}
               </div>

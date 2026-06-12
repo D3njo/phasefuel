@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCallback, useMemo } from 'react'
-import { getDayPlan } from '../data/mealPlan'
+import { getDayPlan, resolveDayPlan, type DayPlan } from '../data/mealPlan'
+import type { MealCategory } from '../data/meals'
 import { getMealById } from '../data/meals'
 import {
   formatDateKey,
@@ -11,7 +12,16 @@ import {
   type DailyTarget,
   type PlanStatus,
 } from '../data/nutrition'
-import { db, getSettings, logMeal, removeMealLog, type MealLog, type Settings } from '../db/database'
+import {
+  db,
+  getSettings,
+  logMeal,
+  removeMealLog,
+  saveDayPreference,
+  type DayPreference,
+  type MealLog,
+  type Settings,
+} from '../db/database'
 
 export interface DaySummary {
   date: string
@@ -23,7 +33,9 @@ export interface DaySummary {
   remaining: { calories: number; protein: number }
   goalReached: boolean
   logs: MealLog[]
-  plan: ReturnType<typeof getDayPlan>
+  plan: DayPlan
+  skipBreakfast: boolean
+  mealOverrides: Partial<Record<MealCategory, string>>
 }
 
 /** undefined = loading, null = no settings yet, Settings = loaded */
@@ -34,19 +46,30 @@ export function useSettings(): Settings | null | undefined {
   }, [])
 }
 
+export function useDayPreference(date: string = formatDateKey()): DayPreference | undefined | null {
+  return useLiveQuery(() => db.dayPreferences.where('date').equals(date).first(), [date])
+}
+
 export function useDaySummary(date: string = formatDateKey()): DaySummary | undefined {
   const settings = useSettings()
+  const dayPref = useDayPreference(date)
   const logs = useLiveQuery(() => db.mealLogs.where('date').equals(date).toArray(), [date])
 
   return useMemo(() => {
-    if (!settings || logs === undefined) return undefined
+    if (!settings || logs === undefined || dayPref === undefined) return undefined
 
     const refDate = new Date(date + 'T12:00:00')
     const planStatus = getPlanStatus(settings.startDate, refDate)
     const dayNumber = planStatus.day
     const effectiveDay = dayNumber > 0 ? dayNumber : 1
     const target = getDailyTarget(effectiveDay, settings.startWeight)
-    const plan = getDayPlan(effectiveDay)
+    const skipBreakfast =
+      dayPref?.skipBreakfast ?? settings.skipBreakfastDefault ?? false
+    const mealOverrides = dayPref?.mealOverrides ?? {}
+    const plan = resolveDayPlan(getDayPlan(effectiveDay), {
+      skipBreakfast,
+      overrides: mealOverrides,
+    })
 
     const consumed = logs.reduce(
       (acc, log) => ({
@@ -72,8 +95,44 @@ export function useDaySummary(date: string = formatDateKey()): DaySummary | unde
       goalReached: isGoalReached(consumed.calories, target.calories),
       logs,
       plan,
+      skipBreakfast,
+      mealOverrides,
     }
-  }, [settings, logs, date])
+  }, [settings, dayPref, logs, date])
+}
+
+export function useDayPreferenceActions(date: string = formatDateKey()) {
+  const settings = useSettings()
+  const dayPref = useDayPreference(date)
+
+  const setSkipBreakfast = useCallback(
+    async (skip: boolean | null) => {
+      await saveDayPreference({
+        date,
+        skipBreakfast: skip,
+        mealOverrides: dayPref?.mealOverrides,
+      })
+    },
+    [date, dayPref?.mealOverrides],
+  )
+
+  const setMealOverride = useCallback(
+    async (category: MealCategory, mealId: string) => {
+      await saveDayPreference({
+        date,
+        skipBreakfast: dayPref?.skipBreakfast ?? null,
+        mealOverrides: { ...dayPref?.mealOverrides, [category]: mealId },
+      })
+    },
+    [date, dayPref],
+  )
+
+  const skipBreakfast =
+    dayPref === undefined || dayPref === null
+      ? (settings?.skipBreakfastDefault ?? false)
+      : (dayPref.skipBreakfast ?? settings?.skipBreakfastDefault ?? false)
+
+  return { setSkipBreakfast, setMealOverride, skipBreakfast, dayPref }
 }
 
 export function useMealActions() {
@@ -166,7 +225,9 @@ export function useHistorySummaries() {
         },
         goalReached: isGoalReached(consumed.calories, target.calories),
         logs,
-        plan: getDayPlan(dayNumber),
+        plan: resolveDayPlan(getDayPlan(dayNumber), { skipBreakfast: false }),
+        skipBreakfast: false,
+        mealOverrides: {},
       })
     }
 

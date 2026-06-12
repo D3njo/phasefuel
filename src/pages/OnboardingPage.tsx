@@ -26,6 +26,7 @@ export function OnboardingPage() {
       onboardingComplete: true,
       pwaHintDismissed: false,
       themeMode: 'system',
+      skipBreakfastDefault: false,
     })
   }
 
@@ -82,7 +83,9 @@ export function OnboardingPage() {
             <li>Tag 11–25: Portionsgrößen steigen</li>
             <li>Tag 26–45: Deftige, kaloriendichte Gerichte</li>
           </ul>
-          <p className="mt-3 text-xs">Kein Fisch, keine Süßspeisen, kein zusätzlicher Zucker.</p>
+          <p className="mt-3 text-xs">
+            Kein Fisch, keine Süßspeisen. Kein Kakao, keine Vanillemilch — Saft & Cola sind ok.
+          </p>
         </Card>
 
         <Button type="submit" fullWidth className="!py-4 !text-lg">

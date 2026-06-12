@@ -249,6 +249,11 @@ export const mealIngredientsMap: Record<string, MealIngredient[]> = {
     { ingredientId: 'molkepulver', amount: 30 },
   ],
   m48: [{ ingredientId: 'buttermilch', amount: 500 }],
+  m49: [{ ingredientId: 'orangensaft', amount: 400 }],
+  m50: [{ ingredientId: 'apfelsaft', amount: 400 }],
+  m51: [{ ingredientId: 'cola', amount: 500 }],
+  m52: [{ ingredientId: 'tomatensaft', amount: 400 }],
+  m53: [{ ingredientId: 'multivitaminsaft', amount: 400 }],
 }
 
 export function getMealIngredients(mealId: string): MealIngredient[] {

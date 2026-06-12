@@ -37,6 +37,7 @@ export function ProfilePage() {
       onboardingComplete: true,
       pwaHintDismissed: settings.pwaHintDismissed,
       themeMode: settings.themeMode ?? 'system',
+      skipBreakfastDefault: settings.skipBreakfastDefault ?? false,
     })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -74,6 +75,31 @@ export function ProfilePage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Profil" subtitle="Deine Einstellungen" />
+
+      <section>
+        <h3 className="text-sm font-medium mb-2">Essgewohnheiten</h3>
+        <Card className="!p-4">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.skipBreakfastDefault ?? false}
+              onChange={async (e) => {
+                await saveSettings({
+                  ...settings,
+                  skipBreakfastDefault: e.target.checked,
+                })
+              }}
+              className="mt-1 rounded border-border accent-accent"
+            />
+            <div>
+              <p className="text-sm font-medium">Meistens kein Frühstück</p>
+              <p className="text-xs text-text-muted mt-0.5">
+                Standard für neue Tage. Auf „Heute“ kannst du es täglich ändern.
+              </p>
+            </div>
+          </label>
+        </Card>
+      </section>
 
       <section>
         <h3 className="text-sm font-medium mb-2">Erscheinungsbild</h3>
@@ -126,7 +152,8 @@ export function ProfilePage() {
         <ul className="text-sm text-text-muted space-y-1">
           <li>✕ Keine Fischgerichte</li>
           <li>✕ Keine Süßigkeiten / Süßspeisen</li>
-          <li>✕ Keine süßen Getränke (Kakao, Cola, Saft …)</li>
+          <li>✕ Kein Kakao, keine Vanillemilch</li>
+          <li>✓ Saft, Cola & Protein-Shake sind im Plan</li>
         </ul>
       </Card>
 

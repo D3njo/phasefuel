@@ -90,6 +90,11 @@ const mealData: Omit<Meal, 'ingredients'>[] = [
   { id: 'm46', name: 'Kefir natur (0,4 L)', description: 'Ungesüßter Kefir', calories: 160, protein: 12, fat: 6, carbs: 16, category: 'getraenk', phases: ['sanfterStart', 'aufbau', 'deftig'], tags: ['leicht'] },
   { id: 'm47', name: 'Protein-Shake natur', description: 'Milch, Molkepulver, ohne Zucker', calories: 280, protein: 32, fat: 6, carbs: 18, category: 'getraenk', phases: ['sanfterStart', 'aufbau', 'deftig'], tags: ['leicht'] },
   { id: 'm48', name: 'Buttermilch (0,5 L)', description: 'Ungesüßte Buttermilch', calories: 220, protein: 14, fat: 8, carbs: 20, category: 'getraenk', phases: ['sanfterStart', 'aufbau', 'deftig'], tags: ['leicht'] },
+  { id: 'm49', name: 'Orangensaft (0,4 L)', description: '100% Orangensaft', calories: 180, protein: 2, fat: 0, carbs: 42, category: 'getraenk', phases: ['sanfterStart', 'aufbau', 'deftig'], tags: ['leicht'] },
+  { id: 'm50', name: 'Apfelsaft (0,4 L)', description: '100% Apfelsaft', calories: 190, protein: 0, fat: 0, carbs: 46, category: 'getraenk', phases: ['sanfterStart', 'aufbau', 'deftig'], tags: ['leicht'] },
+  { id: 'm51', name: 'Cola (0,5 L)', description: 'Cola, zuckerhaltig', calories: 210, protein: 0, fat: 0, carbs: 53, category: 'getraenk', phases: ['sanfterStart', 'aufbau', 'deftig'], tags: ['leicht'] },
+  { id: 'm52', name: 'Tomatensaft (0,4 L)', description: '100% Tomatensaft', calories: 80, protein: 4, fat: 0, carbs: 16, category: 'getraenk', phases: ['sanfterStart', 'aufbau', 'deftig'], tags: ['leicht'] },
+  { id: 'm53', name: 'Multivitaminsaft ACE (0,4 L)', description: 'ACE-Vitaminsaft', calories: 170, protein: 1, fat: 0, carbs: 40, category: 'getraenk', phases: ['sanfterStart', 'aufbau', 'deftig'], tags: ['leicht'] },
 ]
 
 export const meals: Meal[] = mealData.map((m) => ({

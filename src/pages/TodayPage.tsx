@@ -8,7 +8,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Spinner } from '../components/ui/Spinner'
 import { getWeekForDay, getWeekPlan } from '../data/mealPlan'
 import { formatDateDE, PHASE_LABELS } from '../data/nutrition'
-import { useDaySummary, useMealActions } from '../hooks/useNutrition'
+import { useDayPreferenceActions, useDaySummary, useMealActions } from '../hooks/useNutrition'
 
 interface TodayPageProps {
   onGoShopping?: () => void
@@ -17,6 +17,7 @@ interface TodayPageProps {
 export function TodayPage({ onGoShopping }: TodayPageProps) {
   const summary = useDaySummary()
   const { log, logManual, remove } = useMealActions()
+  const { setSkipBreakfast, setMealOverride } = useDayPreferenceActions()
   const [showManual, setShowManual] = useState(false)
   const [manualName, setManualName] = useState('')
   const [manualKcal, setManualKcal] = useState('')
@@ -101,6 +102,23 @@ export function TodayPage({ onGoShopping }: TodayPageProps) {
         />
       </div>
 
+      <Card className="!p-4">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={summary.skipBreakfast}
+            onChange={(e) => setSkipBreakfast(e.target.checked)}
+            className="mt-1 rounded border-border accent-accent"
+          />
+          <div>
+            <p className="text-sm font-medium">Heute kein Frühstück</p>
+            <p className="text-xs text-text-muted mt-0.5">
+              Mittag & Abend sind für heute kräftiger — Kalorienziel bleibt gleich.
+            </p>
+          </div>
+        </label>
+      </Card>
+
       {summary.goalReached ? (
         <Card variant="success" className="text-center !p-4">
           <p className="text-accent font-semibold">Tagesziel erreicht!</p>
@@ -145,7 +163,13 @@ export function TodayPage({ onGoShopping }: TodayPageProps) {
         </section>
       )}
 
-      <DayPlan plan={summary.plan} logs={summary.logs} onEat={log} />
+      <DayPlan
+        plan={summary.plan}
+        logs={summary.logs}
+        mealOverrides={summary.mealOverrides}
+        onEat={log}
+        onSelectAlternative={setMealOverride}
+      />
 
       <section>
         <Button variant="secondary" fullWidth onClick={() => setShowManual(!showManual)}>

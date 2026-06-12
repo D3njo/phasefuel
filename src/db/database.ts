@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
+import type { MealCategory } from '../data/meals'
 import { formatDateKey, getStartDateForDay } from '../data/nutrition'
 
 export interface MealLog {
@@ -32,6 +33,14 @@ export interface Settings {
   onboardingComplete: boolean
   pwaHintDismissed: boolean
   themeMode?: ThemeMode
+  skipBreakfastDefault?: boolean
+}
+
+export interface DayPreference {
+  id?: number
+  date: string
+  skipBreakfast?: boolean | null
+  mealOverrides?: Partial<Record<MealCategory, string>>
 }
 
 export interface ShoppingCheck {
@@ -46,6 +55,7 @@ const db = new Dexie('FitagainDB') as Dexie & {
   weightEntries: EntityTable<WeightEntry, 'id'>
   settings: EntityTable<Settings, 'id'>
   shoppingChecks: EntityTable<ShoppingCheck, 'id'>
+  dayPreferences: EntityTable<DayPreference, 'id'>
 }
 
 db.version(1).stores({
@@ -72,6 +82,21 @@ db.version(3)
     const settings = await tx.table('settings').get(1)
     if (settings && !settings.themeMode) {
       await tx.table('settings').put({ ...settings, themeMode: 'system' })
+    }
+  })
+
+db.version(4)
+  .stores({
+    mealLogs: '++id, date, mealId, timestamp',
+    weightEntries: '++id, date, timestamp',
+    settings: 'id',
+    shoppingChecks: '++id, week, ingredientId, [week+ingredientId]',
+    dayPreferences: '++id, &date',
+  })
+  .upgrade(async (tx) => {
+    const settings = await tx.table('settings').get(1)
+    if (settings && settings.skipBreakfastDefault === undefined) {
+      await tx.table('settings').put({ ...settings, skipBreakfastDefault: false })
     }
   })
 
@@ -136,14 +161,32 @@ export async function toggleShoppingCheck(
   }
 }
 
+export async function getDayPreference(date: string): Promise<DayPreference | undefined> {
+  return db.dayPreferences.where('date').equals(date).first()
+}
+
+export async function saveDayPreference(pref: Omit<DayPreference, 'id'>): Promise<void> {
+  const existing = await getDayPreference(pref.date)
+  if (existing?.id) {
+    await db.dayPreferences.put({ ...existing, ...pref, id: existing.id })
+  } else {
+    await db.dayPreferences.add(pref)
+  }
+}
+
 export async function exportData(): Promise<string> {
-  const [settings, mealLogs, weightEntries, shoppingChecks] = await Promise.all([
+  const [settings, mealLogs, weightEntries, shoppingChecks, dayPreferences] = await Promise.all([
     db.settings.get(1),
     db.mealLogs.toArray(),
     db.weightEntries.toArray(),
     db.shoppingChecks.toArray(),
+    db.dayPreferences.toArray(),
   ])
-  return JSON.stringify({ settings, mealLogs, weightEntries, shoppingChecks }, null, 2)
+  return JSON.stringify(
+    { settings, mealLogs, weightEntries, shoppingChecks, dayPreferences },
+    null,
+    2,
+  )
 }
 
 export async function clearMealLogsOnly(): Promise<void> {
@@ -177,5 +220,6 @@ export async function clearAllData(): Promise<void> {
     db.weightEntries.clear(),
     db.settings.clear(),
     db.shoppingChecks.clear(),
+    db.dayPreferences.clear(),
   ])
 }
